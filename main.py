@@ -17,9 +17,15 @@ class ApplicationController:
 		self.window = ApplicationWindow()
 		self.window.show()
 
+		self.grid_size = 38
 		self.grid = []
 
+		self.start_node = None
+		self.end_node = None
+		#self.obstacles = []
+
 		self.grid_generator()
+		self.button_mapping()
 
 		sys.exit(self.app.exec_())
 
@@ -28,9 +34,12 @@ class ApplicationController:
 		y = 0
 	
 		# Generates nodes in the grid array
-		for i in range(0, 15):
+		for i in range(0, self.grid_size):
 			self.grid.append([])
-			for j in range(0, 15):
+			y = 0
+
+			for j in range(0, self.grid_size):
+
 				self.grid[i].append(Node(i, j))
 	
 				self.window.ui.button = QtWidgets.QPushButton(self.window.ui.centralwidget)
@@ -42,7 +51,63 @@ class ApplicationController:
 				y += 20
 	
 			x += 20
-			y = 0
+
+	def button_mapping(self):
+
+		for child in self.window.ui.centralwidget.children():
+			try:
+				child.clicked.connect(self.set_key_nodes)
+			except AttributeError:
+				pass
+
+		message_window_title = "Setting Key Nodes"
+		message_text = "Please set start node, end node, and obstacles. Press 'Begin' when you're ready."
+
+		self.window.ui.readyButton.clicked.connect(self.begin_pathfinding)
+
+		self.show_message(message_window_title, message_text)
+
+	def set_key_nodes(self):
+		sender = self.window.ui.centralwidget.sender()
+		x, y = self.get_tile_coordinates(sender.objectName())
+
+		if self.start_node is None:
+			print("Starting node: ", x, y)
+			self.grid[x][y].is_start = True
+			self.start_node = self.grid[x][y]
+			sender.setStyleSheet("QPushButton {background-color: #F06E69;}")
+		elif self.start_node is not None and self.end_node is None:
+			print("End node: ", x, y)
+			self.grid[x][y].is_end = True
+			self.end_node = self.grid[x][y]
+			sender.setStyleSheet("QPushButton {background-color: #B2C515;}")
+		elif self.start_node is not None and self.end_node is not None and self.node_available(x, y):
+			print("Obsctale node: ", x, y)
+			self.grid[x][y].is_obstacle = True
+			sender.setStyleSheet("QPushButton {background-color: #41424A;}")
+
+
+	def get_tile_coordinates(self, tile_name):
+		coordinates = tile_name.split(",")
+		return int(coordinates[0]), int(coordinates[1])
+
+	def node_available(self, x_coordinate, y_coordinate):
+		if self.grid[x_coordinate][y_coordinate].is_start or self.grid[x_coordinate][y_coordinate].is_end or self.grid[x_coordinate][y_coordinate].is_obstacle:
+			return False
+		else:
+			return True
+
+
+	def begin_pathfinding(self):
+		print("Works")
+
+	def show_message(self, window_title, message_text):
+
+		message = QtWidgets.QMessageBox()
+		message.setWindowTitle(window_title)
+		message.setText(message_text)
+		message.setStandardButtons(QtWidgets.QMessageBox.Ok)
+		message.exec_()
 
 class Node:
 	def __init__ (self, x_coordinate, y_coordinate):
@@ -70,3 +135,12 @@ Situation:			n - 2,2		x,y
 
 if __name__ == "__main__":
 	ApplicationController()
+
+
+#/* Color Theme Swatches in Hex */
+# #41424A Light Gray
+# #39373B Dark Gray
+#.Colorful-2-hex { color: #FFBF00; } Yellow
+#.Colorful-3-hex { color: #0099C7; } Blue
+#.Colorful-4-hex { color: #F06E69; } Pinkish
+#.Colorful-5-hex { color: #B2C515; } Green

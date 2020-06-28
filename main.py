@@ -10,6 +10,19 @@ class ApplicationWindow(QtWidgets.QMainWindow):
 		self.ui = Ui_MainWindow()
 		self.ui.setupUi(self)
 
+class Node:
+	def __init__ (self, x_coordinate, y_coordinate):
+		self.x_coordinate = x_coordinate
+		self.y_coordinate = y_coordinate
+		self.name = "{x},{y}".format(x=self.x_coordinate,y=self.y_coordinate)
+
+		self.is_start = False
+		self.is_end = False
+		self.is_obstacle = False
+
+		self.g_cost = 0
+		self.h_cost = 0
+		self.f_cost = self.g_cost + self.h_cost
 
 class ApplicationController:
 	def __init__(self):
@@ -17,7 +30,10 @@ class ApplicationController:
 		self.window = ApplicationWindow()
 		self.window.show()
 
-		self.grid_size = 38
+		self.in_pathfinding = False
+
+		self.grid_size = 19
+		self.tile_size = 40
 		self.grid = []
 
 		self.start_node = None
@@ -42,23 +58,20 @@ class ApplicationController:
 
 				self.grid[i].append(Node(i, j))
 	
-				self.window.ui.button = QtWidgets.QPushButton(self.window.ui.centralwidget)
-				self.window.ui.button.setGeometry(QtCore.QRect(x, y, 20, 20))
+				self.window.ui.button = QtWidgets.QPushButton(self.window.ui.node_frame)
+				self.window.ui.button.setGeometry(QtCore.QRect(x, y, self.tile_size, self.tile_size))
 				self.window.ui.button.setText("{x},{y}".format(x=i,y=j))
 				self.window.ui.button.setObjectName("{x},{y}".format(x=i,y=j))
 				self.window.ui.button.show()
 	
-				y += 20
+				y += self.tile_size
 	
-			x += 20
+			x += self.tile_size
 
 	def button_mapping(self):
 
-		for child in self.window.ui.centralwidget.children():
-			try:
-				child.clicked.connect(self.set_key_nodes)
-			except AttributeError:
-				pass
+		for child in self.window.ui.node_frame.children():
+			child.clicked.connect(self.set_key_nodes)
 
 		message_window_title = "Setting Key Nodes"
 		message_text = "Please set start node, end node, and obstacles. Press 'Begin' when you're ready."
@@ -68,7 +81,7 @@ class ApplicationController:
 		self.show_message(message_window_title, message_text)
 
 	def set_key_nodes(self):
-		sender = self.window.ui.centralwidget.sender()
+		sender = self.window.ui.node_frame.sender()
 		x, y = self.get_tile_coordinates(sender.objectName())
 
 		if self.start_node is None:
@@ -76,7 +89,7 @@ class ApplicationController:
 			self.grid[x][y].is_start = True
 			self.start_node = self.grid[x][y]
 			sender.setStyleSheet("QPushButton {background-color: #F06E69;}")
-		elif self.start_node is not None and self.end_node is None:
+		elif self.start_node is not None and self.end_node is None and self.node_available(x, y):
 			print("End node: ", x, y)
 			self.grid[x][y].is_end = True
 			self.end_node = self.grid[x][y]
@@ -92,14 +105,22 @@ class ApplicationController:
 		return int(coordinates[0]), int(coordinates[1])
 
 	def node_available(self, x_coordinate, y_coordinate):
-		if self.grid[x_coordinate][y_coordinate].is_start or self.grid[x_coordinate][y_coordinate].is_end or self.grid[x_coordinate][y_coordinate].is_obstacle:
+		if self.in_pathfinding or self.grid[x_coordinate][y_coordinate].is_start or self.grid[x_coordinate][y_coordinate].is_end or self.grid[x_coordinate][y_coordinate].is_obstacle:
 			return False
 		else:
 			return True
 
+	def get_distance(self, node_a, node_b):
+		x_distance = abs(node_a.x_coordinate - node_b.x_coordinate)
+		y_distance = abs(node_a.y_coordinate - node_b.y_coordinate)
+
+		if x_distance > y_distance:
+			return 14 * y_distance + 10 * (x_distance - y_distance)
+		else:
+			return 14 * x_distance + 10 * (y_distance - x_distance)
 
 	def begin_pathfinding(self):
-		print("Works")
+		self.in_pathfinding = True
 
 	def show_message(self, window_title, message_text):
 
@@ -109,29 +130,6 @@ class ApplicationController:
 		message.setStandardButtons(QtWidgets.QMessageBox.Ok)
 		message.exec_()
 
-class Node:
-	def __init__ (self, x_coordinate, y_coordinate):
-		self.x_coordinate = x_coordinate
-		self.y_coordinate = y_coordinate
-		self.name = "{x},{y}".format(x=self.x_coordinate,y=self.y_coordinate)
-
-		self.is_start = False
-		self.is_end = False
-		self.is_obstacle = False
-
-"""
-/// Getting neighbors of a node /// 
-
-Situation:			n - 2,2		x,y
-  1   2   3			a - 1,1		x-1,y-1
-1_a_|_b_|_c_		b - 2,1		x,y-1
-2_d_|_n_|_e_		c - 3,1		x+1,y-1
-3 f | g | h			d - 1,2		x-1,y
-					e - 3,2		x+1,y
-					f - 1,3		x-1,y+1
-					g - 2,3		x,y+1
-					h - 3,3		x+1,y+1
-"""
 
 if __name__ == "__main__":
 	ApplicationController()

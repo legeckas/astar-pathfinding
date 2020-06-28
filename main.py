@@ -24,6 +24,8 @@ class Node:
 		self.h_cost = 0
 		self.f_cost = self.g_cost + self.h_cost
 
+		self.parent = None
+
 class ApplicationController:
 	def __init__(self):
 		self.app = QtWidgets.QApplication(sys.argv)
@@ -77,6 +79,7 @@ class ApplicationController:
 		message_text = "Please set start node, end node, and obstacles. Press 'Begin' when you're ready."
 
 		self.window.ui.readyButton.clicked.connect(self.begin_pathfinding)
+		self.window.ui.readyButton.setEnabled(False)
 
 		self.show_message(message_window_title, message_text)
 
@@ -89,11 +92,14 @@ class ApplicationController:
 			self.grid[x][y].is_start = True
 			self.start_node = self.grid[x][y]
 			sender.setStyleSheet("QPushButton {background-color: #F06E69;}")
+			sender.setText("Start")
 		elif self.start_node is not None and self.end_node is None and self.node_available(x, y):
 			print("End node: ", x, y)
 			self.grid[x][y].is_end = True
 			self.end_node = self.grid[x][y]
 			sender.setStyleSheet("QPushButton {background-color: #B2C515;}")
+			sender.setText("End")
+			self.window.ui.readyButton.setEnabled(True)
 		elif self.start_node is not None and self.end_node is not None and self.node_available(x, y):
 			print("Obsctale node: ", x, y)
 			self.grid[x][y].is_obstacle = True
@@ -119,8 +125,43 @@ class ApplicationController:
 		else:
 			return 14 * x_distance + 10 * (y_distance - x_distance)
 
+	def get_neighbors(self, node):
+		"""
+		/// Getting neighbors of a node /// 
+		
+		Situation:			n - 2,2		x,y
+		  1   2   3			a - 1,1		x-1,y-1
+		1_a_|_b_|_c_		b - 2,1		x,y-1
+		2_d_|_n_|_e_		c - 3,1		x+1,y-1
+		3 f | g | h			d - 1,2		x-1,y
+							e - 3,2		x+1,y
+							f - 1,3		x-1,y+1
+							g - 2,3		x,y+1
+							h - 3,3		x+1,y+1
+		"""
+
+		neighbors = []
+
+		for x in range(-1, 2):
+			for y in range(-1, 2):
+				if x == 0 and y == 0:
+					continue
+
+				new_x = node.x_coordinate + x
+				new_y = node.y_coordinate + y
+
+				if (new_x >= 0 and new_x < self.grid_size) and (new_y >= 0 and new_y < self.grid_size):
+					neighbors.append(self.grid[new_x][new_y])
+
+		return neighbors
+
 	def begin_pathfinding(self):
 		self.in_pathfinding = True
+
+		open_set = []
+		closed_set = []
+
+		self.get_neighbors(self.start_node)
 
 	def show_message(self, window_title, message_text):
 

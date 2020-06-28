@@ -1,6 +1,7 @@
 import sys
 from PyQt5 import QtCore, QtWidgets
 from astar_pathfinding_ui import Ui_MainWindow
+import time
 
 
 class ApplicationWindow(QtWidgets.QMainWindow):
@@ -34,8 +35,9 @@ class ApplicationController:
 
 		self.in_pathfinding = False
 
-		self.grid_size = 19
-		self.tile_size = 40
+		self.grid_size = 38
+		self.tile_size = 20
+
 		self.grid = []
 
 		self.start_node = None
@@ -151,9 +153,18 @@ class ApplicationController:
 				new_y = node.y_coordinate + y
 
 				if (new_x >= 0 and new_x < self.grid_size) and (new_y >= 0 and new_y < self.grid_size):
-					neighbors.append(self.grid[new_x][new_y])
+					neighbor = self.grid[new_x][new_y]
+					neighbors.append(neighbor)
 
 		return neighbors
+
+	def retrace(self, start_node, end_node):
+		current_node = end_node
+
+		while current_node != start_node:
+			if current_node != end_node:
+				self.window.ui.node_frame.findChild(QtWidgets.QPushButton, current_node.name).setStyleSheet("QPushButton {background-color: #0099C7;}")
+			current_node = current_node.parent
 
 	def begin_pathfinding(self):
 		self.in_pathfinding = True
@@ -161,7 +172,44 @@ class ApplicationController:
 		open_set = []
 		closed_set = []
 
-		self.get_neighbors(self.start_node)
+		open_set.append(self.start_node)
+
+		while len(open_set) > 0:
+			current_node = open_set[0]
+
+			for node in open_set:
+				if node.f_cost < current_node.f_cost:
+					current_node = node
+				elif node.f_cost == current_node.f_cost:
+					if node.h_cost < current_node.h_cost:
+						current_node = node
+
+			open_set.remove(current_node)
+			closed_set.append(current_node)
+
+			if current_node != self.start_node and current_node != self.end_node:
+				self.window.ui.node_frame.findChild(QtWidgets.QPushButton, current_node.name).setStyleSheet("QPushButton {background-color: #FFBF00;}")
+
+
+			if current_node == self.end_node:
+				self.retrace(self.start_node, self.end_node)
+				return
+
+			for neighbor in self.get_neighbors(current_node):
+				if neighbor.is_obstacle or neighbor in closed_set:
+					continue
+
+				new_neighbor_cost = current_node.g_cost + self.get_distance(current_node, neighbor)
+				if new_neighbor_cost < neighbor.g_cost or neighbor not in open_set:
+					neighbor.g_cost = new_neighbor_cost
+					neighbor.h_cost = self.get_distance(neighbor, self.end_node)
+					neighbor.parent = current_node
+
+					if neighbor not in open_set:
+						open_set.append(neighbor)
+
+			#time.sleep(1)
+
 
 	def show_message(self, window_title, message_text):
 

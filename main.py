@@ -33,16 +33,24 @@ class ApplicationController:
 		self.window = ApplicationWindow()
 		self.window.show()
 
+		# Higher is slower
+		self.animation_speed = 45
+
+		# Used to disable buttons while main pahtfinding loop is running
 		self.in_pathfinding = False
 
-		self.grid_size = 38
+		self.grid_x_size = 95
+		self.grid_y_size = 38
 		self.tile_size = 20
+
+		# Adjust frame sizes according to grid size
+		self.window.ui.node_frame.setGeometry(QtCore.QRect(0, 0, self.grid_x_size * self.tile_size, self.grid_y_size * self.tile_size))
+		self.window.ui.ready_button_frame.setGeometry(QtCore.QRect(0, self.grid_y_size * self.tile_size, self.grid_x_size * self.tile_size, 31))
 
 		self.grid = []
 
 		self.start_node = None
 		self.end_node = None
-		#self.obstacles = []
 
 		self.grid_generator()
 		self.button_mapping()
@@ -54,17 +62,17 @@ class ApplicationController:
 		y = 0
 	
 		# Generates nodes in the grid array
-		for i in range(0, self.grid_size):
+		for i in range(0, self.grid_x_size):
 			self.grid.append([])
 			y = 0
 
-			for j in range(0, self.grid_size):
+			for j in range(0, self.grid_y_size):
 
 				self.grid[i].append(Node(i, j))
 	
 				self.window.ui.button = QtWidgets.QPushButton(self.window.ui.node_frame)
 				self.window.ui.button.setGeometry(QtCore.QRect(x, y, self.tile_size, self.tile_size))
-				self.window.ui.button.setText("{x},{y}".format(x=i,y=j))
+				# self.window.ui.button.setText("{x},{y}".format(x=i,y=j)) # Displays tile coordinates for debug
 				self.window.ui.button.setObjectName("{x},{y}".format(x=i,y=j))
 				self.window.ui.button.show()
 	
@@ -78,7 +86,7 @@ class ApplicationController:
 			child.clicked.connect(self.set_key_nodes)
 
 		message_window_title = "Setting Key Nodes"
-		message_text = "Please set start node, end node, and obstacles. Press 'Begin' when you're ready."
+		message_text = "Please set start node, end node, and obstacles. Press 'READY' when you're ready."
 
 		self.window.ui.readyButton.clicked.connect(self.begin_pathfinding)
 		self.window.ui.readyButton.setEnabled(False)
@@ -90,20 +98,17 @@ class ApplicationController:
 		x, y = self.get_tile_coordinates(sender.objectName())
 
 		if self.start_node is None:
-			print("Starting node: ", x, y)
 			self.grid[x][y].is_start = True
 			self.start_node = self.grid[x][y]
 			sender.setStyleSheet("QPushButton {background-color: #F06E69;}")
-			sender.setText("Start")
+			sender.setText("S")
 		elif self.start_node is not None and self.end_node is None and self.node_available(x, y):
-			print("End node: ", x, y)
 			self.grid[x][y].is_end = True
 			self.end_node = self.grid[x][y]
 			sender.setStyleSheet("QPushButton {background-color: #B2C515;}")
-			sender.setText("End")
+			sender.setText("E")
 			self.window.ui.readyButton.setEnabled(True)
 		elif self.start_node is not None and self.end_node is not None and self.node_available(x, y):
-			print("Obsctale node: ", x, y)
 			self.grid[x][y].is_obstacle = True
 			sender.setStyleSheet("QPushButton {background-color: #41424A;}")
 
@@ -113,6 +118,7 @@ class ApplicationController:
 		return int(coordinates[0]), int(coordinates[1])
 
 	def node_available(self, x_coordinate, y_coordinate):
+		# Prevents selection of same nodes in initial node setup
 		if self.in_pathfinding or self.grid[x_coordinate][y_coordinate].is_start or self.grid[x_coordinate][y_coordinate].is_end or self.grid[x_coordinate][y_coordinate].is_obstacle:
 			return False
 		else:
@@ -152,13 +158,14 @@ class ApplicationController:
 				new_x = node.x_coordinate + x
 				new_y = node.y_coordinate + y
 
-				if (new_x >= 0 and new_x < self.grid_size) and (new_y >= 0 and new_y < self.grid_size):
+				if (new_x >= 0 and new_x < self.grid_x_size) and (new_y >= 0 and new_y < self.grid_y_size):
 					neighbor = self.grid[new_x][new_y]
 					neighbors.append(neighbor)
 
 		return neighbors
 
 	def retrace(self, start_node, end_node):
+		# Draws the optimal path according to algorithm
 		current_node = end_node
 
 		while current_node != start_node:
@@ -167,6 +174,7 @@ class ApplicationController:
 			current_node = current_node.parent
 
 	def begin_pathfinding(self):
+		# Main pathinfinding method
 		self.in_pathfinding = True
 
 		open_set = []
@@ -188,8 +196,12 @@ class ApplicationController:
 			closed_set.append(current_node)
 
 			if current_node != self.start_node and current_node != self.end_node:
-				self.window.ui.node_frame.findChild(QtWidgets.QPushButton, current_node.name).setStyleSheet("QPushButton {background-color: #FFBF00;}")
 
+				self.window.update()
+				QtWidgets.QApplication.processEvents()
+				QtCore.QThread.msleep(self.animation_speed)
+				
+				self.window.ui.node_frame.findChild(QtWidgets.QPushButton, current_node.name).setStyleSheet("QPushButton {background-color: #FFBF00;}")
 
 			if current_node == self.end_node:
 				self.retrace(self.start_node, self.end_node)
@@ -207,8 +219,6 @@ class ApplicationController:
 
 					if neighbor not in open_set:
 						open_set.append(neighbor)
-
-			#time.sleep(1)
 
 
 	def show_message(self, window_title, message_text):
